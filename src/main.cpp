@@ -4,6 +4,10 @@
 #include <esp_camera.h>
 #include <FS.h>
 #include <SD_MMC.h>
+#include <Wire.h>
+#include <OLEDDisplay.h>
+#include "SSD1306Wire.h"
+#include "system_config.h"
 
 #include "camera_pins.h"
 
@@ -13,6 +17,15 @@ const char* password = "NotSoSecretPassword";
 AsyncWebServer server(80);
 
 camera_config_t camera_config;
+
+// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
+// The pins for I2C are defined by the Wire-library. 
+// On an arduino UNO:       A4(SDA), A5(SCL)
+// On an arduino MEGA 2560: 20(SDA), 21(SCL)
+// On an arduino LEONARDO:   2(SDA),  3(SCL), ...
+#define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+
+SSD1306Wire display(0x3c, SCREEN_I2C_SDA, SCREEN_I2C_SCL);
 
 void initCamera(){
   // Set up the camera configuration
@@ -60,18 +73,56 @@ camera_fb_t * captureImage(){
     return NULL;
   }
   Serial.println("Camera capture success");
-  esp_camera_fb_return(fb);
   return fb;
 }
 
+#define NOT_CONNECTED_PIN 20
 
 void setup(){
-  Serial.begin(115200);
+  Serial.begin(115200, SERIAL_8N1, NOT_CONNECTED_PIN, -1);
   initCamera();
+
+  // Write HIGH to pin 4
+  pinMode(4, OUTPUT);
+  digitalWrite(4, HIGH);
+  delay(1000);
+  digitalWrite(4, LOW);
+  delay(1000);
+  digitalWrite(4, HIGH);
+  delay(1000);
+  digitalWrite(4, LOW);
+
+  // Write HIGH to pin 12
+  pinMode(12, OUTPUT);
+  digitalWrite(12, HIGH);
+  delay(1000);
+  // Read analog value from pin 2
+  int val = analogRead(2);
+  //int val = 2;
+  delay(1000);
+  digitalWrite(12, LOW);
+  Serial.print("The value of pin 2 is: ");
+  Serial.println(val);
+
+  // Initialising the UI will init the display too.
+  display.init();
+
+  display.flipScreenVertically();
+  display.setFont(ArialMT_Plain_10);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(0, 0, "Hello World");
+  display.drawString(0, 10, "The value of pin 2 is: ");
+  display.drawString(0, 20, String(val));
+
+  display.display();
+  delay(1000);
+  pinMode(2, INPUT_PULLUP);
   WiFi.softAP(ssid, password);
   IPAddress IP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(IP);
+
+
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     camera_fb_t * fb = captureImage();
     if(!fb) {
@@ -79,8 +130,12 @@ void setup(){
       return;
     }
     
+    // Set pin 12 to low
+    //pinMode(12, OUTPUT);
+    //digitalWrite(12, LOW);
+
     // Start sd card
-    if(!SD_MMC.begin()){
+    if(!SD_MMC.begin("/sdcard", true)){
       request->send(500, "text/plain", "SD Card Mount Failed");
       return;
     }
@@ -110,6 +165,12 @@ void setup(){
   server.begin();
 }
 
+int i = 0;
 void loop() {
-  // Main loop
+  // Read input from pin 16 and write ON/OFF to display
+  pinMode(3, INPUT_PULLUP);
+  int val = digitalRead(3);
+  i = i + 1;
+  Serial.println(val);
+  delay(1000);
 }

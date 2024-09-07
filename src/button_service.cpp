@@ -1,80 +1,82 @@
+
 #include <Arduino.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/queue.h"
-#include "freertos/timers.h"
-#include <button_service.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+#include <freertos/task.h>
+#include <freertos/timers.h>
 
-#define DEBOUNCE_TIME_MS 50  // Debounce time in milliseconds
+#include "button_service.h"
 
-// ISR for button press
-static void IRAM_ATTR handleButtonChange(void *arg) {
-    ButtonInterruptInfo *buttonInterruptInfo = (ButtonInterruptInfo *) arg;
-    ButtonEvent buttonEvent = {buttonInterruptInfo->buttonPin, digitalRead(buttonInterruptInfo->buttonPin)};
-    xQueueSendFromISR(buttonInterruptInfo->buttonEventQueue, &buttonEvent, NULL);  // Send button event to queue
+ButtonService::ButtonService(int buttonPin, int buttonActive) : buttonPin(buttonPin), buttonActive(buttonActive) {
+    numSubscribers = 0;
+    lastUpdateTime = 0;
+    buttonTask = NULL;
+    buttonEventQueue = NULL;
 }
 
-
-class ButtonService {
-public:
-    ButtonService(int buttonPin) : buttonPin(buttonPin) {
-        pinMode(buttonPin, INPUT_PULLUP);  // Set button pin as input with pull-up
-
-        buttonEventQueue = xQueueCreate(5, sizeof(int));  // Create queue for button events
-
-        ButtonInterruptInfo buttonInterruptInfo = {buttonPin, buttonEventQueue};
-        attachInterruptArg(digitalPinToInterrupt(buttonPin), handleButtonChange, (void *) &buttonInterruptInfo, CHANGE);  // Attach interrupt for button press
-
-        debounceTimer = xTimerCreate("DebounceTimer", pdMS_TO_TICKS(DEBOUNCE_TIME_MS), pdFALSE, (void *) 0, debounceTimerCallback);  // Create debounce timer
-
-        xTaskCreate(buttonServiceTask, "ButtonServiceTask", 2048, NULL, 1, NULL);  // Create button service task
+void ButtonService::begin() {
+    if (buttonActive == LOW) {
+        pinMode(buttonPin, INPUT_PULLUP);
+    } else {
+        pinMode(buttonPin, INPUT_PULLDOWN);
     }
+    buttonEventQueue = xQueueCreate(5, sizeof(int));
+    buttonInterruptInfo = {buttonPin, buttonActive, buttonEventQueue};
+    attachInterruptArg(digitalPinToInterrupt(buttonPin), handleButtonChange, (void *) &buttonInterruptInfo, CHANGE);
 
+    xTaskCreate(buttonServiceTask, "ButtonServiceTask", 2048, this, 1, &buttonTask);
+}
 
-private:
-    int buttonPin;
-    volatile bool debounceInProgress = false;  // To track debounce state
-
-    // Software timer for debouncing
-    TimerHandle_t debounceTimer;
-
-    // Button task
-    TaskHandle_t buttonTask;
-
-    // Queue for button events
-    QueueHandle_t buttonEventQueue;
-
-    // Debounce timer callback (called after debounce time)
-    static void debounceTimerCallback(TimerHandle_t xTimer) {
-        debounceInProgress = false;  // Allow new button presses after debounce time
+void ButtonService::end() {
+    if (buttonTask != NULL) {
+        vTaskDelete(buttonTask);
     }
+    if (buttonEventQueue != NULL) {
+        vQueueDelete(buttonEventQueue);
+    }
+    detachInterrupt(digitalPinToInterrupt(buttonPin));
+}
 
-    // Button service task
-    static void buttonServiceTask(void *pvParameters) {
-        int buttonEvent;
-        while (1) {
-            if (xQueueReceive(buttonEventQueue, &buttonEvent, portMAX_DELAY)) {  // Wait for button event
-                for (int i = 0; i < numSubscribers; i++) {
-                    xTaskNotifyGive(subscriberTasks[i]);  // Notify each subscriber
+int ButtonService::subscribe(QueueHandle_t queue) {
+    if (numSubscribers < MAX_SUBSCRIBERS) {
+        subscriberQueues[numSubscribers++] = queue;
+        return 0;
+    } else {
+        return -1;
+    }
+}
+
+void ButtonService::unsubscribe(QueueHandle_t queue) {
+    for (int i = 0; i < numSubscribers; i++) {
+        if (subscriberQueues[i] == queue) {
+            for (int j = i; j < numSubscribers - 1; j++) {
+                subscriberQueues[j] = subscriberQueues[j + 1];
+            }
+            numSubscribers--;
+            break;
+        }
+    }
+}
+
+void ButtonService::handleButtonChange(void *arg) {
+    ButtonInterruptInfo *buttonInterruptInfo = (ButtonInterruptInfo *) arg;
+    int value = digitalRead(buttonInterruptInfo->buttonPin) == buttonInterruptInfo->buttonActive ? 1 : 0;
+    xQueueSendFromISR(buttonInterruptInfo->buttonEventQueue, &value, NULL);
+}
+
+void ButtonService::buttonServiceTask(void *p) {
+    ButtonService *buttonService = (ButtonService *) p;
+
+    int buttonEvent;
+    while (1) {
+        if (xQueueReceive(buttonService->buttonEventQueue, &buttonEvent, portMAX_DELAY)) {
+            long currentTime = millis();
+            if (currentTime - buttonService->lastUpdateTime > DEBOUNCE_TIME_MS) {
+                buttonService->lastUpdateTime = currentTime;
+                for (int i = 0; i < buttonService->numSubscribers; i++) {
+                    xQueueSend(buttonService->subscriberQueues[i], &buttonEvent, 0);
                 }
             }
         }
     }
-};
-
-// Example subscriber task
-void task1(void *pvParameters) {
-    while (1) {
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);  // Wait for button press notification
-        Serial.println("Task 1: Button Press Detected!");
-    }
-}
-
-void setup() {
-    ButtonService buttonService(3);  // Create an instance of ButtonService with button pin 3
-    buttonService.subscribe(task1);  // Subscribe task1 to the button service
-}
-
-void loop() {
-    // Your main code here
 }

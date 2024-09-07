@@ -4,15 +4,11 @@
 #include <freertos/task.h>
 #include <freertos/timers.h>
 
-#include "button_service.h"
+#include "ButtonService.h"
 
-ButtonService::ButtonService(int buttonPin, int buttonActive) : buttonPin(buttonPin), buttonActive(buttonActive) {
-    numSubscribers = 0;
-    lastButtonState = LOW;
-    lastUpdateTime = 0;
-    buttonTask = NULL;
-    buttonEventQueue = NULL;
-}
+ButtonService::ButtonService(int buttonPin, int buttonActive)
+    : buttonPin(buttonPin), buttonActive(buttonActive), numSubscribers(0), lastButtonState(LOW),
+      lastUpdateTime(0), buttonTask(nullptr), buttonEventQueue(nullptr) {}
 
 void ButtonService::begin() {
     // Set the pin mode based on the buttonActive value
@@ -34,12 +30,12 @@ void ButtonService::begin() {
 
 void ButtonService::end() {
     // Delete the button task if it exists
-    if (buttonTask != NULL) {
+    if (buttonTask != nullptr) {
         vTaskDelete(buttonTask);
     }
     
     // Delete the button event queue if it exists
-    if (buttonEventQueue != NULL) {
+    if (buttonEventQueue != nullptr) {
         vQueueDelete(buttonEventQueue);
     }
     

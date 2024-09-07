@@ -1,5 +1,5 @@
-#ifndef CAMERA_PINS_H
-#define CAMERA_PINS_H
+#ifndef RETROLENS_CAMERA_PINS_H
+#define RETROLENS_CAMERA_PINS_H
 
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1

@@ -1,5 +1,5 @@
-#ifndef BUTTON_SERVICE_H
-#define BUTTON_SERVICE_H
+#ifndef RETROLENS_BUTTON_SERVICE_H
+#define RETROLENS_BUTTON_SERVICE_H
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

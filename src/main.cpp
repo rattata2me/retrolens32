@@ -8,10 +8,11 @@
 #include <OLEDDisplay.h>
 #include <SSD1306Wire.h>
 
-#include "system_config.h"
+#include "SystemConfig.h"
 
-#include "camera_pins.h"
-#include <button_service.h>
+#include "CameraPins.h"
+#include <ButtonService.h>
+#include <GlobalState.h>
 
 const char* ssid = "RETROLENS32-WIFI";
 const char* password = "NotSoSecretPassword";
@@ -22,10 +23,10 @@ ButtonService buttonService(SHUTTER_BUTTON_PIN, SHUTTER_BUTTON_ACTIVE);
 
 QueueHandle_t buttonEventQueue;
 
-#define NOT_CONNECTED_PIN 20
+
 
 void setup(){
-  Serial.begin(115200, SERIAL_8N1, NOT_CONNECTED_PIN, -1);
+  
   pinMode(LAMP_PIN, OUTPUT);
 
   buttonService.begin();
@@ -34,6 +35,7 @@ void setup(){
 
   // Subscribe to button events
   buttonService.subscribe(buttonEventQueue);
+
 }
 
 int i = 0;

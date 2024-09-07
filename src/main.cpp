@@ -6,7 +6,8 @@
 #include <SD_MMC.h>
 #include <Wire.h>
 #include <OLEDDisplay.h>
-#include "SSD1306Wire.h"
+#include <SSD1306Wire.h>
+
 #include "system_config.h"
 
 #include "camera_pins.h"

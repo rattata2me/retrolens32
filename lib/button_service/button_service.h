@@ -45,6 +45,9 @@ struct ButtonInterruptInfo {
  */
 class ButtonService {
 public:
+
+    ButtonInterruptInfo buttonInterruptInfo; /**< Button interrupt information. */
+
     /**
      * @brief Construct a new Button Service object.
      * 
@@ -86,12 +89,13 @@ public:
 private:
     int buttonPin;           /**< Pin number for the button. */
     int buttonActive;        /**< Active state of the button. */
-    ButtonInterruptInfo buttonInterruptInfo; /**< Button interrupt information. */
     long lastUpdateTime;     /**< Last update time for debouncing. */
-    TaskHandle_t buttonTask; /**< Task handle for the button service task. */
-    QueueHandle_t buttonEventQueue; /**< Queue for button events. */
     QueueHandle_t subscriberQueues[MAX_SUBSCRIBERS]; /**< Array of subscriber queues. */
     int numSubscribers;      /**< Number of subscribers. */
+
+protected:
+    TaskHandle_t buttonTask; /**< Task handle for the button service task. */
+    QueueHandle_t buttonEventQueue; /**< Queue for button events. */
 
     /**
      * @brief Handle button state changes (interrupt service routine).

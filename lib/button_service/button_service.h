@@ -7,7 +7,9 @@
 #include "freertos/timers.h"
 
 #define MAX_SUBSCRIBERS 10
-#define DEBOUNCE_TIME_MS 50
+#define DEBOUNCE_TIME_MS 5
+#define PERIODIC_CHECK_MS 300
+
 
 struct ButtonInterruptInfo {
     int buttonPin;
@@ -89,6 +91,7 @@ public:
 private:
     int buttonPin;           /**< Pin number for the button. */
     int buttonActive;        /**< Active state of the button. */
+    int lastButtonState;     /**< Last button state for debouncing. */
     long lastUpdateTime;     /**< Last update time for debouncing. */
     QueueHandle_t subscriberQueues[MAX_SUBSCRIBERS]; /**< Array of subscriber queues. */
     int numSubscribers;      /**< Number of subscribers. */

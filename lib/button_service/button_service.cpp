@@ -8,6 +8,7 @@
 
 ButtonService::ButtonService(int buttonPin, int buttonActive) : buttonPin(buttonPin), buttonActive(buttonActive) {
     numSubscribers = 0;
+    lastButtonState = LOW;
     lastUpdateTime = 0;
     buttonTask = NULL;
     buttonEventQueue = NULL;
@@ -72,33 +73,53 @@ void ButtonService::unsubscribe(QueueHandle_t queue) {
     }
 }
 
+// Read the button value and convert it to 1 or 0 based on the buttonActive value
+#define READ_BUTTON_VALUE(buttonInterruptInfo) (digitalRead(buttonInterruptInfo->buttonPin) == buttonInterruptInfo->buttonActive ? HIGH : LOW)
+
+
 void ButtonService::handleButtonChange(void *arg) {
     ButtonInterruptInfo *buttonInterruptInfo = (ButtonInterruptInfo *) arg;
     
-    // Read the button value and convert it to 1 or 0 based on the buttonActive value
-    int value = digitalRead(buttonInterruptInfo->buttonPin) == buttonInterruptInfo->buttonActive ? HIGH : LOW;
-    
+    int value = READ_BUTTON_VALUE(buttonInterruptInfo);
     // Send the button value to the button event queue from the interrupt context
     xQueueSendFromISR(buttonInterruptInfo->buttonEventQueue, &value, NULL);
 }
 
 void ButtonService::buttonServiceTask(void *p) {
     // Cast the argument to a ButtonService pointer
-    ButtonService *buttonService = (ButtonService *) p;
+    ButtonService *buttonService = static_cast<ButtonService *>(p);
 
     int buttonEvent;
-    while (1) {
+    while (true) {
         // Wait for a button event to be received from the button event queue
-        if (xQueueReceive(buttonService->buttonEventQueue, &buttonEvent, portMAX_DELAY)) {
+        if (xQueueReceive(buttonService->buttonEventQueue, &buttonEvent, PERIODIC_CHECK_MS / portTICK_PERIOD_MS)) {
             // Check if enough time has passed since the last button update to debounce the button
             long currentTime = millis();
-            if (currentTime - buttonService->lastUpdateTime > DEBOUNCE_TIME_MS) {
+            if (buttonService->lastButtonState != buttonEvent && currentTime - buttonService->lastUpdateTime > DEBOUNCE_TIME_MS) {
+                // Update the last button state
+                buttonService->lastButtonState = buttonEvent;
+
                 // Update the last update time
                 buttonService->lastUpdateTime = currentTime;
-                
+
                 // Send the button event to all subscribers
                 for (int i = 0; i < buttonService->numSubscribers; i++) {
                     xQueueSend(buttonService->subscriberQueues[i], &buttonEvent, 0);
+                }
+            }
+        } else {
+            // If no button event was received, check the button state periodically
+            int value = READ_BUTTON_VALUE((&buttonService->buttonInterruptInfo));
+            if (value != buttonService->lastButtonState && millis() - buttonService->lastUpdateTime > DEBOUNCE_TIME_MS) {
+                // Update the last button state
+                buttonService->lastButtonState = value;
+
+                // Update the last update time
+                buttonService->lastUpdateTime = millis();
+
+                // Send the button event to all subscribers
+                for (int i = 0; i < buttonService->numSubscribers; i++) {
+                    xQueueSend(buttonService->subscriberQueues[i], &value, 0);
                 }
             }
         }

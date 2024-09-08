@@ -1,3 +1,6 @@
+#include <SD_MMC.h>
+
+#include "GlobalState.h"
 #include "SaveService.h"
 
 
@@ -5,7 +8,7 @@ SaveService::SaveService()
     : sdInitialized(false), saveImageResultQueue(nullptr), 
     saveImageTaskHandle(nullptr), saveImageInProgress(false) {
     saveImageSemaphore = xSemaphoreCreateMutex();
-    }
+}
 
 SaveErrorMessage SaveService::initSdCard(const char* mountPath, long timeout) {
 
@@ -84,6 +87,8 @@ bool SaveService::startImageSaveTask(QueueHandle_t resultQueue) {
         saveImageInProgress = true;
         xSemaphoreGive(saveImageSemaphore); // Release the semaphore
     }
+    saveImageResultQueue = resultQueue;
+
     // Create the imageSaveTask
     if (xTaskCreate(imageSaveTask, "ImageSaveTask", 4096, this, 1, &saveImageTaskHandle) != pdPASS) {
         return false;
@@ -117,8 +122,6 @@ void SaveService::imageSaveTask(void* p) {
     // Close the SD card
     service->closeSdCard();
     service->setSaveImageInProgress(false);
-    
-    Serial.println("Image saved");
 
     // Send the result to the result queue
     if (service->saveImageResultQueue != nullptr)

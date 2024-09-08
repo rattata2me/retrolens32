@@ -1,19 +1,26 @@
 #include "GlobalState.h"
 
-// Static Semaphore handles
-SemaphoreHandle_t GlobalState::screenPinsMutex = nullptr;
-SemaphoreHandle_t GlobalState::batteryPinsMutex = nullptr;
+// Semaphores
+SemaphoreHandle_t GlobalState::screenPinsMutex;
+SemaphoreHandle_t GlobalState::batteryPinsMutex;
+SemaphoreHandle_t GlobalState::batteryAnalogPinsMutex;
 
-/**
- * @brief Initializes global state resources such as semaphores and serial communication.
- */
+// Services
+ButtonService* GlobalState::buttonService;
+SaveService* GlobalState::saveService;
+BatteryReaderService* GlobalState::batteryReaderService;
+ProgramService* GlobalState::programService;
+
 void GlobalState::initialize() {
     // Initialize serial communication
     Serial.begin(115200, SERIAL_8N1, NOT_CONNECTED_PIN, -1);
 
+    pinMode(LAMP_PIN, OUTPUT);  // Set the lamp pin as output
+
     // Create semaphores for shared resources
     screenPinsMutex = xSemaphoreCreateMutex();
     batteryPinsMutex = xSemaphoreCreateMutex();
+    batteryAnalogPinsMutex = xSemaphoreCreateMutex();
 
     // Check if semaphores were successfully created
     if (screenPinsMutex == nullptr || batteryPinsMutex == nullptr) {
@@ -22,79 +29,66 @@ void GlobalState::initialize() {
 
     // Initialize the camera
     esp_err_t err = initializeCamera();
+    if (err != ESP_OK) {
+        Serial.println("Failed to initialize camera!");
+    }
+
+    // Initialize services
+    GlobalState::buttonService = new ButtonService(SHUTTER_BUTTON_PIN, SHUTTER_BUTTON_ACTIVE);
+    GlobalState::saveService = new SaveService();
+    GlobalState::programService = new ProgramService();
+
+    buttonService->begin();
+    programService->initProgram();
 }
 
-/**
- * @brief Safely acquires the screen.
- * 
- * @param timeout Time (in ticks) to wait for the semaphore.
- * @return true if the semaphore was successfully taken, false otherwise.
- */
+ButtonService* GlobalState::getButtonService() {
+    return buttonService;
+}
+
+SaveService* GlobalState::getSaveService() {
+    return saveService;
+}
+
 bool GlobalState::safelyTakeScreen(long timeout) {
     return xSemaphoreTake(screenPinsMutex, timeout);
 }
 
-/**
- * @brief Releases the screen resource.
- */
 void GlobalState::safelyFreeScreen() {
     xSemaphoreGive(screenPinsMutex);
 }
 
-/**
- * @brief Safely acquires the battery resource.
- * 
- * @param timeout Time (in ticks) to wait for the semaphore.
- * @return true if the semaphore was successfully taken, false otherwise.
- */
 bool GlobalState::safelyTakeBattery(long timeout) {
-    return xSemaphoreTake(batteryPinsMutex, timeout);
+    if (xSemaphoreTake(batteryAnalogPinsMutex, timeout) == pdTRUE) {
+        return xSemaphoreTake(batteryPinsMutex, timeout);
+    }
+    return false;
 }
 
-/**
- * @brief Releases the battery resource by giving back the battery semaphore.
- */
 void GlobalState::safelyFreeBattery() {
     xSemaphoreGive(batteryPinsMutex);
 }
 
-/**
- * @brief Safely acquires the SD card resource.
- * 
- * SD card access requires both screen and battery resources to be available.
- * 
- * @param timeout Time (in ticks) to wait for the semaphores.
- * @return true if both semaphores were successfully taken, false otherwise.
- */
 bool GlobalState::safelyTakeSdCard(long timeout) {
-    bool result = xSemaphoreTake(screenPinsMutex, timeout);
-    if (!result) {
-        return result;
+    if (xSemaphoreTake(screenPinsMutex, timeout) == pdTRUE) {
+        return xSemaphoreTake(batteryPinsMutex, timeout);
     }
-    return xSemaphoreTake(batteryPinsMutex, timeout);
+    return false;
 }
 
-/**
- * @brief Releases the SD card resource.
- */
 void GlobalState::safelyFreeSdCard() {
     xSemaphoreGive(batteryPinsMutex);
     xSemaphoreGive(screenPinsMutex);
 }
 
-/**
- * @brief Safely acquires the WiFi resource.
- * 
- * @param timeout Time (in ticks) to wait for the semaphore.
- * @return true if the semaphore was successfully taken, false otherwise.
- */
 bool GlobalState::safelyTakeWifi(long timeout) {
-    return xSemaphoreTake(batteryPinsMutex, timeout);
+    return xSemaphoreTake(batteryAnalogPinsMutex, timeout);
 }
 
-/**
- * @brief Releases the WiFi resource by giving back the battery semaphore.
- */
 void GlobalState::safelyFreeWifi() {
-    xSemaphoreGive(batteryPinsMutex);
+    xSemaphoreGive(batteryAnalogPinsMutex);
+}
+
+void GlobalState::setFlashState(bool state) {
+    digitalWrite(LAMP_PIN, state);
 }

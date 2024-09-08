@@ -70,7 +70,8 @@ void ButtonService::unsubscribe(QueueHandle_t queue) {
 }
 
 // Read the button value and convert it to 1 or 0 based on the buttonActive value
-#define READ_BUTTON_VALUE(buttonInterruptInfo) (digitalRead(buttonInterruptInfo->buttonPin) == buttonInterruptInfo->buttonActive ? HIGH : LOW)
+#define READ_BUTTON_VALUE(buttonInterruptInfo) \
+    (digitalRead(buttonInterruptInfo->buttonPin) == buttonInterruptInfo->buttonActive ? BUTTON_PRESSED : BUTTON_RELEASED)
 
 
 void ButtonService::handleButtonChange(void *arg) {
@@ -98,6 +99,11 @@ void ButtonService::buttonServiceTask(void *p) {
                 // Update the last update time
                 buttonService->lastUpdateTime = currentTime;
 
+                // Reset the long press flag if the button is released
+                if (buttonEvent == BUTTON_RELEASED) {
+                    buttonService->longPress = false;
+                }
+
                 // Send the button event to all subscribers
                 for (int i = 0; i < buttonService->numSubscribers; i++) {
                     xQueueSend(buttonService->subscriberQueues[i], &buttonEvent, 0);
@@ -116,6 +122,15 @@ void ButtonService::buttonServiceTask(void *p) {
                 // Send the button event to all subscribers
                 for (int i = 0; i < buttonService->numSubscribers; i++) {
                     xQueueSend(buttonService->subscriberQueues[i], &value, 0);
+                }
+            }
+            // If the button is pressed for a long time, send a long press event
+            else if (value == BUTTON_PRESSED && !buttonService->longPress 
+                    && millis() - buttonService->lastUpdateTime > LONG_PRESS_TIME_MS) {
+                buttonService->longPress = true;
+                for (int i = 0; i < buttonService->numSubscribers; i++) {
+                    int longPressEvent = BUTTON_LONG_PRESSED;
+                    xQueueSend(buttonService->subscriberQueues[i], &longPressEvent, 0);
                 }
             }
         }

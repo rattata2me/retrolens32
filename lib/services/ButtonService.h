@@ -9,6 +9,11 @@
 #define MAX_SUBSCRIBERS 10
 #define DEBOUNCE_TIME_MS 5
 #define PERIODIC_CHECK_MS 300
+#define LONG_PRESS_TIME_MS 1000
+
+#define BUTTON_PRESSED 1
+#define BUTTON_RELEASED 0
+#define BUTTON_LONG_PRESSED 2
 
 
 struct ButtonInterruptInfo {
@@ -92,6 +97,7 @@ private:
     int buttonPin;           /**< Pin number for the button. */
     int buttonActive;        /**< Active state of the button. */
     int lastButtonState;     /**< Last button state for debouncing. */
+    bool longPress;          /**< Flag to indicate a long press. */
     long lastUpdateTime;     /**< Last update time for debouncing. */
     QueueHandle_t subscriberQueues[MAX_SUBSCRIBERS]; /**< Array of subscriber queues. */
     int numSubscribers;      /**< Number of subscribers. */

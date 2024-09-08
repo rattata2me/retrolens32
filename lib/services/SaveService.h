@@ -2,13 +2,11 @@
 #define RETROLENS_SAVE_SERVICE_H
 
 #include <Arduino.h>
-#include <SD_MMC.h>
 #include <esp_camera.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/queue.h>
 
-#include "GlobalState.h"
 #include "CameraUtils.h"
 
 #define TIMEOUT_MS 100
@@ -88,7 +86,7 @@ public:
     /**
      * @brief Creates a task that captures an image and saves it to the SD card.
      * 
-     * @param resultQueue The queue to send the result of the task (0 for success, non-zero for error).
+     * @param resultQueue The queue to send the result of the task. If nullptr, no result is sent.
      * @return true if the task was successfully created, false otherwise.
      */
     bool startImageSaveTask(QueueHandle_t resultQueue);

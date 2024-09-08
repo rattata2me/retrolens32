@@ -19,6 +19,9 @@ void GlobalState::initialize() {
     if (screenPinsMutex == nullptr || batteryPinsMutex == nullptr) {
         Serial.println("Failed to create semaphores!");
     }
+
+    // Initialize the camera
+    esp_err_t err = initializeCamera();
 }
 
 /**

@@ -5,6 +5,7 @@
 #include <freertos/semphr.h>
 
 #include "SystemConfig.h"
+#include "CameraUtils.h"
 
 /**
  * @class GlobalState

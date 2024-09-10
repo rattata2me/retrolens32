@@ -26,6 +26,8 @@ private:
 
     void drawFlashScreen();
 
+    void drawFilmDownloadScreen();
+
     static void programTaskFunction(void *p);
 
     QueueHandle_t buttonEventQueue;

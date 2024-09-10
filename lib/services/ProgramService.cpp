@@ -2,6 +2,7 @@
 #include <OLEDDisplay.h>
 #include <SSD1306Wire.h>
 #include "GlobalState.h"
+#include "StaticImages.h"
 #include "ProgramService.h"
 
 
@@ -85,6 +86,7 @@ void ProgramService::drawTakingPictureScreen() {
     display->setFont(ArialMT_Plain_10);
     display->setTextAlignment(TEXT_ALIGN_LEFT);
     display->drawString(0, 0, "Taking Picture...");
+    display->drawXbm(10, 10, HAPPY_XBM_WIDTH, HAPPY_XBM_HEIGHT, HAPPY_XBM_IMAGE);
     display->display();
     display->end();
     GlobalState::safelyFreeScreen();
@@ -114,7 +116,7 @@ void ProgramService::flashScreen() {
             if (xQueueReceive(buttonEventQueue, &buttonEvent, BUTTON_CANCEL_TIMEOUT / portTICK_PERIOD_MS)) {
                 if (buttonEvent == BUTTON_RELEASED) {
                     // Set the next state to the home screen
-                    setNextState(&ProgramService::homeScreen);
+                    setNextState(&ProgramService::filmDownloadScreen);
                     return;
                 } else if (buttonEvent == BUTTON_LONG_PRESSED) {
                     // Toggle the flash
@@ -142,6 +144,48 @@ void ProgramService::drawFlashScreen() {
     // Draw the flash status
     display->drawString(0, 10, "Flash: ");
     display->drawString(0, 20, isFlashOn ? "On" : "Off");
+    display->display();
+    display->end();
+    GlobalState::safelyFreeScreen();  
+}
+
+#define FILM_DOWNLOAD_SCREEN_TIMEOUT 30000
+void ProgramService::filmDownloadScreen() {
+    drawFilmDownloadScreen();
+
+    // Wait for button press
+    int buttonEvent;
+    if (xQueueReceive(buttonEventQueue, &buttonEvent, FILM_DOWNLOAD_SCREEN_TIMEOUT / portTICK_PERIOD_MS)) {
+        if (buttonEvent == BUTTON_PRESSED) {
+            // Wait for button release
+            if (xQueueReceive(buttonEventQueue, &buttonEvent, BUTTON_CANCEL_TIMEOUT / portTICK_PERIOD_MS)) {
+                if (buttonEvent == BUTTON_RELEASED) {
+                    // Set the next state to the home screen
+                    setNextState(&ProgramService::homeScreen);
+                    return;
+                } else if (buttonEvent == BUTTON_LONG_PRESSED) {
+                    // Start film download
+                    //GlobalState::getDownloadService()->startFilmDownload();
+                    setNextState(&ProgramService::homeScreen);
+                    return;
+                }
+            }
+        } else {
+            setNextState(&ProgramService::filmDownloadScreen);
+            return;
+        }
+    }
+    
+    setNextState(&ProgramService::homeScreen);
+}
+
+void ProgramService::drawFilmDownloadScreen() {
+    GlobalState::safelyTakeScreen();
+    display->init();
+    display->clear();
+    display->setFont(ArialMT_Plain_10);
+    display->setTextAlignment(TEXT_ALIGN_LEFT);
+    display->drawString(0, 0, "Film Download Screen");
     display->display();
     display->end();
     GlobalState::safelyFreeScreen();  

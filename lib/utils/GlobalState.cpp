@@ -37,9 +37,13 @@ void GlobalState::initialize() {
     GlobalState::buttonService = new ButtonService(SHUTTER_BUTTON_PIN, SHUTTER_BUTTON_ACTIVE);
     GlobalState::saveService = new SaveService();
     GlobalState::programService = new ProgramService();
+    GlobalState::batteryReaderService = new BatteryReaderService(BATTERY_VOLTAGE_PIN, BATTERY_CONTROL_PIN);
 
     buttonService->begin();
     programService->initProgram();
+    GlobalState::getBatteryReaderService()->startBatteryReadTask();
+
+    GlobalState::getBatteryReaderService()->startBatteryReadTask();
 }
 
 ButtonService* GlobalState::getButtonService() {
@@ -48,6 +52,10 @@ ButtonService* GlobalState::getButtonService() {
 
 SaveService* GlobalState::getSaveService() {
     return saveService;
+}
+
+BatteryReaderService* GlobalState::getBatteryReaderService() {
+    return batteryReaderService;
 }
 
 bool GlobalState::safelyTakeScreen(long timeout) {
@@ -66,6 +74,7 @@ bool GlobalState::safelyTakeBattery(long timeout) {
 }
 
 void GlobalState::safelyFreeBattery() {
+    xSemaphoreGive(batteryAnalogPinsMutex);
     xSemaphoreGive(batteryPinsMutex);
 }
 

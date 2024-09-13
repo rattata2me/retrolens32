@@ -31,7 +31,7 @@ void ProgramService::programTaskFunction(void *p) {
     }
 }
 
-#define HOME_SCREEN_TIMEOUT 20000
+#define HOME_SCREEN_TIMEOUT 10000
 void ProgramService::homeScreen() {
     drawHomeScreen();
 
@@ -76,6 +76,8 @@ void ProgramService::homeScreen() {
         }
     }
 
+    // Check battery status
+    GlobalState::getBatteryReaderService()->startBatteryReadTask();
     setNextState(&ProgramService::homeScreen);
 }
 
@@ -92,10 +94,18 @@ void ProgramService::drawTakingPictureScreen() {
     GlobalState::safelyFreeScreen();
 }
 
+void ProgramService::drawBatteryStatus() {
+    display->setFont(ArialMT_Plain_10);
+    display->setTextAlignment(TEXT_ALIGN_LEFT);
+    display->drawString(0, 20, "Battery Status");
+    display->drawString(0, 30, "Percentage: " + String(GlobalState::getBatteryReaderService()->getLastBatteryLevel()) + "%");
+}
+
 void ProgramService::drawHomeScreen() {
     GlobalState::safelyTakeScreen();
     display->init();
     display->clear();
+    drawBatteryStatus();
     display->setFont(ArialMT_Plain_10);
     display->setTextAlignment(TEXT_ALIGN_LEFT);
     display->drawString(0, 0, "Home Screen");

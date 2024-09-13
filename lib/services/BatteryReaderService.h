@@ -7,6 +7,8 @@
 #include <freertos/task.h>
 #include <freertos/queue.h>
 
+#define CONTROL_PIN_DELAY_MS 50
+
 /**
  * @class BatteryReaderService
  * @brief Service to handle analog reading of the battery voltage from a specific pin, 
@@ -19,7 +21,7 @@ public:
      * 
      * @param analogPin The analog pin to read the battery voltage from.
      */
-    BatteryReaderService(int analogPin);
+    BatteryReaderService(uint8_t analogPin, uint8_t controlPin);
 
     /**
      * @brief Initialize the BatteryReaderService.
@@ -51,7 +53,7 @@ public:
      * @param resultQueue The FreeRTOS queue to send the result to.
      * @return True if the task was created successfully, false otherwise.
      */
-    bool startBatteryReadTask(QueueHandle_t resultQueue);
+    bool startBatteryReadTask(QueueHandle_t resultQueue = nullptr);
 
 private:
     /**
@@ -76,7 +78,8 @@ private:
      */
     float batteryLevelToPercentage(float voltage);
 
-    int analogPin;                  ///< Analog pin to read from.
+    uint8_t analogPin;                  ///< Analog pin to read from.
+    uint8_t controlPin;                 ///< Control pin to enable/disable the battery reading.
     float lastBatteryLevel;          ///< Last read battery voltage.
     SemaphoreHandle_t batteryMutex;  ///< Mutex to protect battery reading operations.
     TaskHandle_t batteryReadTaskHandle; ///< Handle for the battery read task.

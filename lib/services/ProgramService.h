@@ -22,6 +22,8 @@ public:
 private:
     void drawHomeScreen();
 
+    void drawBatteryStatus();
+
     void drawTakingPictureScreen();
 
     void drawFlashScreen();

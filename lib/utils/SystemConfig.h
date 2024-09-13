@@ -4,6 +4,10 @@
 // Flash LED pin and configuration
 #define LAMP_PIN           4 // LED FloodLamp.
 
+// Battery voltage pin and configuration
+#define BATTERY_VOLTAGE_PIN 2
+#define BATTERY_CONTROL_PIN 12
+
 // Shutter button pin and configuration
 #define SHUTTER_BUTTON_PIN 3
 #define SHUTTER_BUTTON_ACTIVE LOW

@@ -97,8 +97,24 @@ void ProgramService::drawTakingPictureScreen() {
 void ProgramService::drawBatteryStatus() {
     display->setFont(ArialMT_Plain_10);
     display->setTextAlignment(TEXT_ALIGN_LEFT);
-    display->drawString(0, 20, "Battery Status");
-    display->drawString(0, 30, "Percentage: " + String(GlobalState::getBatteryReaderService()->getLastBatteryLevel()) + "%");
+    float percentage = GlobalState::getBatteryReaderService()->getLastBatteryLevel();
+    display->drawXbm(5, 5, BATTERY_XBM_WIDTH, BATTERY_XBM_HEIGHT, BATTERY_XBM_IMAGE);
+    // Draw vertical lines depending on the battery level
+    for (int i = 0; i < 5; i++) {
+        if (true){//percentage > i * 20) {
+            display->drawVerticalLine(7 + i * 4, 7, 9);
+            display->drawVerticalLine(8 + i * 4, 7, 9);
+            display->drawVerticalLine(9 + i * 4, 7, 9);
+        }
+    }
+}
+
+void ProgramService::drawFlashStatus() {
+    if (isFlashOn) {
+        display->drawXbm(108, 5, FLASH_SMALL_XBM_WIDTH, FLASH_SMALL_XBM_HEIGHT, FLASH_SMALL_XBM_IMAGE);
+        return;
+    }
+    display->drawXbm(108, 5, FLASH_SMALL_OFF_XBM_WIDTH, FLASH_SMALL_OFF_XBM_HEIGHT, FLASH_SMALL_OFF_XBM_IMAGE);
 }
 
 void ProgramService::drawHomeScreen() {
@@ -106,9 +122,10 @@ void ProgramService::drawHomeScreen() {
     display->init();
     display->clear();
     drawBatteryStatus();
-    display->setFont(ArialMT_Plain_10);
+    drawFlashStatus();
+    display->setFont(ArialMT_Plain_24);
     display->setTextAlignment(TEXT_ALIGN_LEFT);
-    display->drawString(0, 0, "Home Screen");
+    display->drawString(0, 30, "Home Screen");
     display->display();
     display->end();
     GlobalState::safelyFreeScreen();

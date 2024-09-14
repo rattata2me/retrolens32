@@ -98,6 +98,15 @@ public:
      */
     bool isImageSaveInProgress();
 
+    /**
+     * @brief Starts a task that reads the film status and sends the result to a queue.
+     * 
+     * @param resultQueue The FreeRTOS queue to send the result to.
+     * @return True if the task was created successfully, false otherwise.
+     */
+    bool startReadFilmStatusTask(QueueHandle_t resultQueue);
+
+
 private:
     /**
      * @brief The task function that captures and saves an image.
@@ -105,6 +114,13 @@ private:
      * @param p Pointer to SaveService object.
      */
     static void imageSaveTask(void* p);
+
+    /**
+     * @brief The task function that reads the film status.
+     * 
+     * @param p Pointer to SaveService object.
+     */
+    static void readFilmStatusTask(void* p);
 
     /**
      * @brief Checks if an SD card is present and accessible.

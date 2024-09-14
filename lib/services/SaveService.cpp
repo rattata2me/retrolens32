@@ -130,3 +130,41 @@ void SaveService::imageSaveTask(void* p) {
     // Delete the task
     vTaskDelete(nullptr);
 }
+
+bool SaveService::startReadFilmStatusTask(QueueHandle_t resultQueue) {
+    // Create the readFilmStatusTask
+    if (xTaskCreate(readFilmStatusTask, "ReadFilmStatusTask", 4096, this, 1, &saveImageTaskHandle) != pdPASS) {
+        return false;
+    }
+
+    return true;
+}
+
+void SaveService::readFilmStatusTask(void* p) {
+    SaveService* service = static_cast<SaveService*>(p);
+
+    // Initialize the SD card
+    service->saveImageErr = service->initSdCard(SD_PATH);
+    if (service->saveImageErr.code != 0) {
+        service->closeSdCard();
+        service->setSaveImageInProgress(false);
+        if (service->saveImageResultQueue != nullptr)
+            xQueueSend(service->saveImageResultQueue, &(service->saveImageErr), 0);
+        vTaskDelete(nullptr);
+    }
+
+    // Read the film status
+    // Assuming readFilmStatus() is a function that reads the film status and returns a string
+    String filmStatus = "Hello"; //readFilmStatus();
+
+    // Send the film status to the result queue
+    if (service->saveImageResultQueue != nullptr)
+        xQueueSend(service->saveImageResultQueue, &filmStatus, 0);
+
+    // Close the SD card
+    service->closeSdCard();
+    service->setSaveImageInProgress(false);
+
+    // Delete the task
+    vTaskDelete(nullptr);
+}

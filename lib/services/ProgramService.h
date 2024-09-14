@@ -24,6 +24,8 @@ private:
 
     void drawBatteryStatus();
 
+    void drawFlashStatus();
+
     void drawTakingPictureScreen();
 
     void drawFlashScreen();

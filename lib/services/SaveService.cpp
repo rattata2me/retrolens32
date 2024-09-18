@@ -1,7 +1,9 @@
 #include <SD_MMC.h>
+#include <string>
 
 #include "GlobalState.h"
 #include "SaveService.h"
+#include "Films.h"
 
 
 SaveService::SaveService() 
@@ -10,25 +12,25 @@ SaveService::SaveService()
     saveImageSemaphore = xSemaphoreCreateMutex();
 }
 
-SaveErrorMessage SaveService::initSdCard(const char* mountPath, long timeout) {
+SaveServiceErrorMessage SaveService::initSdCard(const char* mountPath, long timeout) {
 
     // Safely take the SD card resource
     if (!GlobalState::safelyTakeSdCard(timeout)) {
-        return SaveErrorMessage{SD_TIMEOUT, "Failed to take SD card resource"};
+        return SaveServiceErrorMessage{SD_TIMEOUT, "Failed to take SD card resource"};
     }
 
     if (!SD_MMC.begin(mountPath, true)) {
         GlobalState::safelyFreeSdCard();
-        return SaveErrorMessage{SD_INIT_ERROR, "Failed to mount SD card"};
+        return SaveServiceErrorMessage{SD_INIT_ERROR, "Failed to mount SD card"};
     }
 
     if (!isSdCardAvailable()) {
         GlobalState::safelyFreeSdCard();
-        return SaveErrorMessage{SD_MOUNT_ERROR, "No SD Card attached"};
+        return SaveServiceErrorMessage{SD_MOUNT_ERROR, "No SD Card attached"};
     }
 
     sdInitialized = true;
-    return SaveErrorMessage{0, ""};
+    return SaveServiceErrorMessage{0, ""};
 }
 
 void SaveService::closeSdCard() {
@@ -44,14 +46,14 @@ bool SaveService::isSdCardAvailable() {
     return (cardType != CARD_NONE);
 }
 
-SaveErrorMessage SaveService::saveImageToSdCard(camera_fb_t* fb, const String& path) {
+SaveServiceErrorMessage SaveService::saveImageToSdCard(camera_fb_t* fb, const String& path) {
     if (!sdInitialized) {
-        return SaveErrorMessage{SD_INIT_ERROR, "SD card is not initialized"};
+        return SaveServiceErrorMessage{SD_INIT_ERROR, "SD card is not initialized"};
     }
 
     File file = SD_MMC.open(path.c_str(), FILE_WRITE);
     if (!file) {
-        return SaveErrorMessage{FILE_OPEN_ERROR, "Failed to open file for writing"};
+        return SaveServiceErrorMessage{FILE_OPEN_ERROR, "Failed to open file for writing"};
     }
 
     file.write(fb->buf, fb->len);
@@ -95,6 +97,54 @@ bool SaveService::startImageSaveTask(QueueHandle_t resultQueue) {
     }
 
     return true;
+}
+
+FilmsStatus SaveService::readFilmStatus() {
+    SaveServiceErrorMessage saveImageErr = {0, ""};
+
+    // Get all the folders inside SD_PATH + SD_FILMS_PATH
+    String path = String(SD_PATH) + String(SD_FILMS_PATH);
+    File root = SD_MMC.open(path.c_str());
+
+    // Read the folders
+    int i = 0;
+    
+    while (root.openNextFile()) {
+        if (root.isDirectory()) {
+
+            // Read the folder name
+            String folderName = root.name();
+            // Check if folder name follows the format "XXX_filmtype"
+            String id = folderName.substring(0, 3);
+            String filmType = folderName.substring(4);
+
+            // Make sure id is numeric
+            if (!id.toInt()) {
+                continue;
+            }
+
+            // Check if filmType is valid
+            if (!isValidFilmType(filmType.c_str())) {
+                continue;
+            }
+
+            // Read the files inside the folder
+            File folder = SD_MMC.open(folderName.c_str());
+            int numFiles = 0;
+            while (folder.openNextFile()) {
+                numFiles++;
+            }
+
+            // Add the film to the films array
+            filmsStatus.films[i].framesRemaining = getFilmCapacity(filmType.c_str()) - numFiles;
+            filmsStatus.films[i].filmType = filmType;
+            filmsStatus.films[i].filmPath = folderName;
+            i = (i + 1) % MAX_FILMS;
+            filmsStatus.numFilms++;
+        }
+
+    }
+    
 }
 
 void SaveService::imageSaveTask(void* p) {
